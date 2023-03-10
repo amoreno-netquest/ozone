@@ -1,23 +1,24 @@
 {
   inputs = {
-    nixpkgs = {
-      url = "github:nixos/nixpkgs/nixos-unstable";
-    };
-    flake-utils = {
-      url = "github:numtide/flake-utils";
-    };
+    mach-nix.url = "mach-nix/3.5.0";
   };
-  outputs = { nixpkgs, flake-utils, ... }: flake-utils.lib.eachDefaultSystem (system:
+
+  outputs = {self, nixpkgs, mach-nix }@inp:
     let
-      pkgs = import nixpkgs {
-        inherit system;
-      };
-    in rec {
-      devShell = pkgs.mkShell {
-        buildInputs = with pkgs; [
-          python3
-        ];
-      };
-    }
-  );
+      l = nixpkgs.lib // builtins;
+      supportedSystems = [ "aarch64-darwin" ];
+      forAllSystems = f: l.genAttrs supportedSystems
+        (system: f system (import nixpkgs {inherit system;}));
+    in
+    {
+      # enter this python environment by executing `nix shell .`
+      defaultPackage = forAllSystems (system: pkgs: mach-nix.lib."${system}".mkPython {
+        requirements = ''
+          pandas
+          numpy
+          requests
+          datafusion
+        '';
+      });
+    };
 }
